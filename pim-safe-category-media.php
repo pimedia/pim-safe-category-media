@@ -15,7 +15,7 @@
  * @wordpress-plugin
  * Plugin Name:       PIM Safe Category Media
  * Plugin URI:        https://www.parorrey.com
- * Description:       WordPress plugin that adds a field on the Category page that allows users to upload or select an existing image in either PNG or JPEG format from the WordPress Media Library. Features incude safe deletion of media, prevents users from deleting any images from the WordPress Media Library if the image is being used in posts.
+ * Description:       WordPress plugin that adds a field on the Category page that allows users to upload or select an existing image in either PNG or JPEG format from the WordPress Media Library.
  * Version:           1.0.0
  * Author:            Ali Qureshi
  * Author URI:        https://www.parorrey.com
@@ -63,6 +63,7 @@ register_deactivation_hook( __FILE__, 'deactivate_pim_safe_category_media' );
  * admin-specific hooks, and public-facing site hooks.
  */
 require plugin_dir_path( __FILE__ ) . 'includes/class-pim-safe-category-media.php';
+require plugin_dir_path( __FILE__ ) . 'functions.php';
 
 /**
  * Begins execution of the plugin.
