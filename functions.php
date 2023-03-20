@@ -74,7 +74,12 @@ add_action( 'manage_media_custom_column', 'pscm_get_data_attached_objects' , 10,
 function pscm_get_data_attached_objects( $col, $id ) {
 	if($col == 'attached_objects'){
 	
-			$linked_objects = pscm_get_linked_objects( $id );
+		pscm_output_attached_objects($id);
+		}
+}
+
+function pscm_output_attached_objects($id){
+	$linked_objects = pscm_get_linked_objects( $id );
 			$posts = $linked_objects['posts'];
 			$terms = $linked_objects['terms'];
 
@@ -87,7 +92,6 @@ function pscm_get_data_attached_objects( $col, $id ) {
 				 edit_term_link($term->term_id, '<strong>', '</strong>, ', $term);
             
 			}
-		}
 }
 
 /**
@@ -121,7 +125,7 @@ where
 			and cast({$wpdb->postmeta}.meta_value as char) = '%d'
 		)
 		or ( {$wpdb->posts}.post_content like %s )
-		/*or ( {$wpdb->term_meta}.meta_key ='pscm_term_avatar_id' )*/
+		
 	)
 group by {$wpdb->posts}.ID
 SQL;
@@ -213,3 +217,36 @@ function pscm_register_taxonomy_metabox() {
 
 
 }
+
+
+add_filter('pre_delete_attachment', 'pscm_check_linked_images', 0, 2);
+function pscm_check_linked_images($delete, $post) {
+
+	
+  if($post->ID){
+	$linked_objects = pscm_get_linked_objects( $post->ID );
+			$posts = $linked_objects['posts'];
+			$terms = $linked_objects['terms'];
+
+    if (sizeof($posts)>0 || sizeof($terms)>0) {
+
+		if(is_array($posts)) {
+			foreach ( $posts as $p ){
+				edit_post_link($p->ID, '<strong>', '</strong>, ', $p->ID);
+			}
+
+		}
+		if (is_array($terms)) {
+			foreach ( $terms as $term ){
+				edit_term_link($term->term_id, '<strong>', '</strong>, ', $term);
+		   
+		   }
+		}
+	
+		wp_die("<p><strong>Error</strong>: This image ($post->post_title) can't be deleted before removing it from linked above Articles!</p>");
+	}
+       
+    }
+}
+
+
