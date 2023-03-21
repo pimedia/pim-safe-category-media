@@ -82,17 +82,37 @@ function pscm_output_attached_objects($id){
 	$linked_objects = pscm_get_linked_objects( $id );
 			$posts = $linked_objects['posts'];
 			$terms = $linked_objects['terms'];
-
-			foreach ( $posts as $post ){
-				edit_post_link($post->ID, '<strong>', '</strong>, ', $post->ID);
-            
+			if(sizeof($posts)>0){
+				
+				$i=0;
+				foreach ( $posts as $post ){
+					$i++;
+					$data[$i]['ID'] = $post->ID;
+					$data[$i]['url'] = get_edit_post_link($post->ID, '');
+				
+				}
 			}
-
+			if(is_array($data)){
+				echo 'Articles<br>';
+				echo pscm_create_list($data);
+	        echo '<br>'; 
+			}
+		
+           if(sizeof($terms)>0){
+			
+			$i=0;
 			foreach ( $terms as $term ){
-				 edit_term_link($term->term_id, '<strong>', '</strong>, ', $term);
+				$i++;
+				$terms_data[$i]['ID'] = $term->term_id;
+				$terms_data[$i]['url'] =  get_edit_term_link($term, 'category', '');
             
 			}
-}
+		   }
+		   if(is_array($terms_data)){
+			echo 'Terms<br>';
+			echo pscm_create_list($terms_data);
+             }
+		   } 
 
 /**
  * Returns an array of of posts and terms arrays with IDs and post titles
@@ -249,4 +269,58 @@ function pscm_check_linked_images($delete, $post) {
     }
 }
 
+
+
+function pscm_create_list($data){
+	$len = sizeof($data);
+	if($len>0){
+			$i = 0;
+            foreach($data as $d){
+				$i++;
+				$output .= '<a href="'.$d['url'].'">'.$d['ID'].'</a>';
+
+				if ($i != $len) $output .= ', ';
+			}
+		}
+	return $output;
+}
+
+add_action('rest_api_init', function () {
+	register_rest_route( '/assignment/v1/', '/image/(?P<id>\d+)',array(
+				  'methods'  => 'GET',
+				  'callback' => 'pscm_api_attachment_details'
+		));
+  });
+
+  function pscm_api_attachment_details($request){
+
+	$image_id = $request['id'];
+
+	$image = get_post($image_id);
+
+	if (empty($image)) {
+		return new WP_Error( 'error image', 'There is no image by this id', array('status' => 404) );
+	
+		}
+
+		$image_meta = wp_get_attachment_metadata($image_id);
+
+		$res = new stdClass();
+
+		$res->ID = $image->ID;
+		$res->date =  $image->post_date;
+		$res->slug =  $image_meta['file'];
+
+		$res->type = $image->post_mime_type;
+		$res->link =$image->guid;
+		$res->alt_text = $image->post_title;
+		$res->attached_objects =  pscm_get_linked_objects($image->ID);
+
+	
+		$response = new WP_REST_Response($res);
+		$response->set_status(200);
+	
+		return $response;
+
+  }
 
