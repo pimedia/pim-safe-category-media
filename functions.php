@@ -3,56 +3,53 @@
  * Get the bootstrap! If using the plugin from wordpress.org, REMOVE THIS!
  */
 
+ ini_set('display_errors', '1');
+ ini_set('display_startup_errors', '1');
+ error_reporting(E_ALL);
+
 if ( file_exists( dirname( __FILE__ ) . '/cmb2/init.php' ) ) {
 	require_once dirname( __FILE__ ) . '/cmb2/init.php';
 } elseif ( file_exists( dirname( __FILE__ ) . '/CMB2/init.php' ) ) {
 	require_once dirname( __FILE__ ) . '/CMB2/init.php';
 }
 
+add_action( 'cmb2_admin_init', 'pscm_register_taxonomy_metabox' );
 /**
- * Conditionally displays a metabox when used as a callback in the 'show_on_cb' cmb2_box parameter
- *
- * @param  CMB2 $cmb CMB2 object.
- *
- * @return bool      True if metabox should show
+ * Hook in and add a metabox to add fields to taxonomy terms
  */
+function pscm_register_taxonomy_metabox() {
+
+	/**
+	 * Metabox to add fields to categories and tags
+	 */
+	$cmb_term = new_cmb2_box( array(
+		'id'               => 'pscm_term_edit',
+		'title'            => esc_html__( 'Category Metabox', 'cmb2' ), // Doesn't output for term boxes
+		'object_types'     => array( 'term' ), // Tells CMB2 to use term_meta vs post_meta
+		'taxonomies'       => array( 'category', 'post_tag' ), // Tells CMB2 which taxonomies should have these fields
+		// 'new_term_section' => true, // Will display in the "Add New Category" section
+	) );
 
 
-function pscm_get_image_count( $id ){
-    global $wpdb;
+	$cmb_term->add_field( array(
+		'name' => esc_html__( 'Term Image', 'cmb2' ),
+		'desc' => esc_html__( 'Select a JPEG or PNG image.', 'cmb2' ),
+		'id'   => 'pscm_term_avatar',
+		'type' => 'file',
+		'query_args' => array(
+			'type' => array(
+				   'image/jpeg',
+				'image/png',
+				 )
+		),
+	) );
 
-    $att  = get_post_custom( $id );
-    $file = $att['_wp_attached_file'][0];
-    //Dot take full path as different image sizes could
-    // have different month, year folders due to theme and image size changes
-    $file = sprintf( "%s.%s",
-        pathinfo( $file, PATHINFO_FILENAME ),
-        pathinfo( $file, PATHINFO_EXTENSION )
-    );
 
-    $sql = "SELECT {$wpdb->posts}.ID 
-        FROM {$wpdb->posts} 
-        INNER JOIN {$wpdb->postmeta} 
-        ON ({$wpdb->posts}.ID = {$wpdb->postmeta}.post_id) 
-        WHERE {$wpdb->posts}.post_type IN ('post', 'page', 'event') 
-        AND (({$wpdb->posts}.post_status = 'publish')) 
-        AND ( ({$wpdb->postmeta}.meta_key = '_thumbnail_id' 
-            AND CAST({$wpdb->postmeta}.meta_value AS CHAR) = '%d') 
-            OR ( {$wpdb->posts}.post_content LIKE %s )
-        ) 
-        GROUP BY {$wpdb->posts}.ID";
-
-    $prepared_sql = $wpdb->prepare( $sql, $id, "%src=\"%".$wpdb->esc_like( $file )."\"%" );
-
-    $post_ids  = $wpdb->get_results( $prepared_sql );
-
-    $count = count( $post_ids );
-
-    return $count;
 }
-function pscm_not_allowed_to_delete($id){
-    pscm_get_image_count($id);
-} 
+
+
+
+
 // function pscm_remove_media_delete_link_in_grid_view( $response, $attachment ) {
 //     if ( pscm_not_allowed_to_delete( $attachment->ID ) )
 //         $response['nonces']['delete'] = false;
@@ -82,6 +79,9 @@ function pscm_output_attached_objects($id){
 	$linked_objects = pscm_get_linked_objects( $id );
 			$posts = $linked_objects['posts'];
 			$terms = $linked_objects['terms'];
+
+			$data = [];
+			$terms_data = [];
 			if(sizeof($posts)>0){
 				
 				$i=0;
@@ -92,7 +92,7 @@ function pscm_output_attached_objects($id){
 				
 				}
 			}
-			if(is_array($data)){
+			if(sizeof($posts)>0){
 				echo 'Articles<br>';
 				echo pscm_create_list($data);
 	        echo '<br>'; 
@@ -108,7 +108,7 @@ function pscm_output_attached_objects($id){
             
 			}
 		   }
-		   if(is_array($terms_data)){
+		   if(sizeof($terms_data)>0){
 			echo 'Terms<br>';
 			echo pscm_create_list($terms_data);
              }
@@ -154,9 +154,9 @@ SQL;
 		$sql,
 		$id,
 			"%src=\"%"
-			. like_escape( $name )
+			.  $wpdb->esc_like( $name )
 			. "%"
-			. like_escape( $ext )
+			.  $wpdb->esc_like( $ext )
 			. "\"%"
 	) );
 
@@ -204,42 +204,10 @@ function pscm_column_attached_objects() {
 	</style>';
 }
 
-add_action( 'cmb2_admin_init', 'pscm_register_taxonomy_metabox' );
-/**
- * Hook in and add a metabox to add fields to taxonomy terms
- */
-function pscm_register_taxonomy_metabox() {
-
-	/**
-	 * Metabox to add fields to categories and tags
-	 */
-	$cmb_term = new_cmb2_box( array(
-		'id'               => 'pscm_term_edit',
-		'title'            => esc_html__( 'Category Metabox', 'cmb2' ), // Doesn't output for term boxes
-		'object_types'     => array( 'term' ), // Tells CMB2 to use term_meta vs post_meta
-		'taxonomies'       => array( 'category', 'post_tag' ), // Tells CMB2 which taxonomies should have these fields
-		// 'new_term_section' => true, // Will display in the "Add New Category" section
-	) );
-
-
-	$cmb_term->add_field( array(
-		'name' => esc_html__( 'Term Image', 'cmb2' ),
-		'desc' => esc_html__( 'Select a JPEG or PNG image.', 'cmb2' ),
-		'id'   => 'pscm_term_avatar',
-		'type' => 'file',
-		'query_args' => array(
-			'type' => array(
-				   'image/jpeg',
-				'image/png',
-				 )
-		),
-	) );
-
-
-}
 
 
 add_filter('pre_delete_attachment', 'pscm_check_linked_images', 0, 2);
+
 function pscm_check_linked_images($delete, $post) {
 
 	
@@ -270,9 +238,16 @@ function pscm_check_linked_images($delete, $post) {
 }
 
 
-
+/**
+ * Returns formatted output comma separated list 
+ * where the media library image is in use
+ * as term image
+ * @param array $data
+ * @return html output
+ */
 function pscm_create_list($data){
 	$len = sizeof($data);
+	$output= '';
 	if($len>0){
 			$i = 0;
             foreach($data as $d){
@@ -292,6 +267,12 @@ add_action('rest_api_init', function () {
 		));
   });
 
+
+/**
+ * Returns details of a given image ID in json format
+ * @param array $request
+ * @return json
+ */
   function pscm_api_attachment_details($request){
 
 	$image_id = $request['id'];
@@ -303,7 +284,8 @@ add_action('rest_api_init', function () {
 	
 		}
 
-		$image_meta = wp_get_attachment_metadata($image_id);
+		$image_meta = wp_get_attachment_metadata($image->ID);
+		$attached_objects = pscm_get_linked_objects($image->ID);
 
 		$res = new stdClass();
 
@@ -312,9 +294,9 @@ add_action('rest_api_init', function () {
 		$res->slug =  $image_meta['file'];
 
 		$res->type = $image->post_mime_type;
-		$res->link =$image->guid;
+		$res->link = $image->guid;
 		$res->alt_text = $image->post_title;
-		$res->attached_objects =  pscm_get_linked_objects($image->ID);
+		$res->attached_objects =  $attached_objects;
 
 	
 		$response = new WP_REST_Response($res);
@@ -324,3 +306,93 @@ add_action('rest_api_init', function () {
 
   }
 
+  add_action('rest_api_init', function () {
+	register_rest_route( '/assignment/v1/', '/delete_image/(?P<id>\d+)',array(
+				  'methods'  => 'DELETE',
+				  'callback' => 'pscm_api_delete_attachment'
+		));
+  });
+
+
+/**
+ * Returns confirmation of deleted image ID in json format
+ * @param array $request
+ * @return json
+ */
+  function pscm_api_delete_attachment($request){
+
+	$image_id = $request['id'];
+
+	$image = get_post($image_id);
+
+	if (empty($image)) {
+		return new WP_Error( 'error image', 'There is no image by this id', array('status' => 404) );
+	
+		}
+
+		$attached_objects = pscm_get_linked_objects($image->ID);
+
+		if( sizeof($attached_objects['posts'])>0 || sizeof($attached_objects['terms'])>0){
+			return new WP_Error( 'error deletion', 'Deletion failed as this image is being used with articles', array('status' => 200) );
+		}
+
+		
+		$res = wp_delete_attachment( $image->ID, true);
+        if($res->ID) $message = 'Media ID: '.$res->ID.' deleted successfully.'; 
+		else $message = 'Deleted successfully';
+		$response = new WP_REST_Response( array( 'message' => $message ));
+		$response->set_status(200);
+	
+		return $response;
+
+  }
+  
+
+// function pscm_add_media_attachment_detail($form_fields, $post) {
+
+// 	if($post->ID){
+// 		$linked_objects = pscm_get_linked_objects( $post->ID );
+// 				$posts = $linked_objects['posts'];
+// 				$terms = $linked_objects['terms'];
+// 				$data = [];
+	
+// 		if (sizeof($posts)>0 || sizeof($terms)>0) {
+// 			$i = 0;
+// 			if(is_array($posts)) {
+// 				foreach ( $posts as $p ){
+// 					$i++;
+					
+// 					$data[$i]['ID'] = $p->ID;
+// 					$data[$i]['url'] = get_edit_post_link($p->ID,'');
+// 				}
+	
+// 			}
+// 			if (is_array($terms)) {
+			
+// 				foreach ( $terms as $term ){
+// 					$i++;
+// 					$data[$i]['ID'] = $term->term_id;
+// 					$data[$i]['url'] = get_edit_term_link($term, 'category');
+// 			   }
+// 			}
+// 			$len = count($data);
+// 			$i = 0;
+//             foreach($data as $d){
+// 				$i++;
+// 				$helps_data .= '<a href="'.$d['url'].'">'.$d['ID'].'</a>';
+
+// 				if ($i != $len) $helps_data .= ', ';
+// 			}
+			 
+// 		}
+// 	}
+		
+//     $form_fields['youtube_link'] = array(
+//         'label' => 'Linked Articles',
+//         'helps' => $helps_data
+//     );
+//     return $form_fields;
+// }
+
+
+//add_filter('attachment_fields_to_edit', 'pscm_add_media_attachment_detail', 10, 2);
