@@ -48,17 +48,6 @@ function pscm_register_taxonomy_metabox() {
 }
 
 
-
-
-// function pscm_remove_media_delete_link_in_grid_view( $response, $attachment ) {
-//     if ( pscm_not_allowed_to_delete( $attachment->ID ) )
-//         $response['nonces']['delete'] = false;
-
-//     return $response;
-// }
-// add_filter( 'wp_prepare_attachment_for_js', 'pscm_remove_media_delete_link_in_grid_view' );
-
-
 add_filter( 'manage_media_columns', 'pscm_attached_objects_col', 10, 2);
  function pscm_attached_objects_col( $cols, $detached ) {
 	$cols['attached_objects'] =  __( 'Attached Objects', 'pim-safe-category-media' );
@@ -75,7 +64,7 @@ function pscm_get_data_attached_objects( $col, $id ) {
 		}
 }
 
-function pscm_output_attached_objects($id){
+function pscm_output_attached_objects($id, $output='true'){
 	$linked_objects = pscm_get_linked_objects( $id );
 			$posts = $linked_objects['posts'];
 			$terms = $linked_objects['terms'];
@@ -92,26 +81,54 @@ function pscm_output_attached_objects($id){
 				
 				}
 			}
-			if(sizeof($posts)>0){
-				echo 'Articles<br>';
-				echo pscm_create_list($data);
-	        echo '<br>'; 
-			}
-		
-           if(sizeof($terms)>0){
+
+			if( $output == false){
+				$response = '';
+				if(sizeof($posts)>0){
+					$response = 'Articles<br>';
+					$response .= pscm_create_list($data);
+					$response .= '<br>'; 
+				}
 			
-			$i=0;
-			foreach ( $terms as $term ){
-				$i++;
-				$terms_data[$i]['ID'] = $term->term_id;
-				$terms_data[$i]['url'] =  get_edit_term_link($term, 'category', '');
-            
+			   if(sizeof($terms)>0){
+				
+				$i=0;
+				foreach ( $terms as $term ){
+					$i++;
+					$terms_data[$i]['ID'] = $term->term_id;
+					$terms_data[$i]['url'] =  get_edit_term_link($term, 'category', '');
+				
+				}
+			   }
+			   if(sizeof($terms_data)>0){
+				$response .= 'Terms<br>';
+				$response .= pscm_create_list($terms_data);
+				 }
+
+				return $response;
+
+			}else{
+				if(sizeof($posts)>0){
+					echo 'Articles<br>';
+					echo pscm_create_list($data);
+				echo '<br>'; 
+				}
+			
+			   if(sizeof($terms)>0){
+				
+				$i=0;
+				foreach ( $terms as $term ){
+					$i++;
+					$terms_data[$i]['ID'] = $term->term_id;
+					$terms_data[$i]['url'] =  get_edit_term_link($term, 'category', '');
+				
+				}
+			   }
+			   if(sizeof($terms_data)>0){
+				echo 'Terms<br>';
+				echo pscm_create_list($terms_data);
+				 }
 			}
-		   }
-		   if(sizeof($terms_data)>0){
-			echo 'Terms<br>';
-			echo pscm_create_list($terms_data);
-             }
 		   } 
 
 /**
@@ -212,27 +229,13 @@ function pscm_check_linked_images($delete, $post) {
 
 	
   if($post->ID){
-	$linked_objects = pscm_get_linked_objects( $post->ID );
-			$posts = $linked_objects['posts'];
-			$terms = $linked_objects['terms'];
-
-    if (sizeof($posts)>0 || sizeof($terms)>0) {
-
-		if(is_array($posts)) {
-			foreach ( $posts as $p ){
-				edit_post_link($p->ID, '<strong>', '</strong>, ', $p->ID);
-			}
-
-		}
-		if (is_array($terms)) {
-			foreach ( $terms as $term ){
-				edit_term_link($term->term_id, '<strong>', '</strong>, ', $term);
-		   
-		   }
-		}
+	if ( !pscm_can_delete( $post->ID ) ){
+		pscm_output_attached_objects($post->ID);	
 	
 		wp_die("<p><strong>Error</strong>: This image ($post->post_title) can't be deleted before removing it from linked above Articles!</p>");
+	
 	}
+	   
        
     }
 }
@@ -348,51 +351,54 @@ add_action('rest_api_init', function () {
   }
   
 
-// function pscm_add_media_attachment_detail($form_fields, $post) {
-
-// 	if($post->ID){
-// 		$linked_objects = pscm_get_linked_objects( $post->ID );
-// 				$posts = $linked_objects['posts'];
-// 				$terms = $linked_objects['terms'];
-// 				$data = [];
-	
-// 		if (sizeof($posts)>0 || sizeof($terms)>0) {
-// 			$i = 0;
-// 			if(is_array($posts)) {
-// 				foreach ( $posts as $p ){
-// 					$i++;
-					
-// 					$data[$i]['ID'] = $p->ID;
-// 					$data[$i]['url'] = get_edit_post_link($p->ID,'');
-// 				}
-	
-// 			}
-// 			if (is_array($terms)) {
-			
-// 				foreach ( $terms as $term ){
-// 					$i++;
-// 					$data[$i]['ID'] = $term->term_id;
-// 					$data[$i]['url'] = get_edit_term_link($term, 'category');
-// 			   }
-// 			}
-// 			$len = count($data);
-// 			$i = 0;
-//             foreach($data as $d){
-// 				$i++;
-// 				$helps_data .= '<a href="'.$d['url'].'">'.$d['ID'].'</a>';
-
-// 				if ($i != $len) $helps_data .= ', ';
-// 			}
-			 
-// 		}
-// 	}
+function pscm_add_media_attachment_detail($form_fields, $post) {
 		
-//     $form_fields['youtube_link'] = array(
-//         'label' => 'Linked Articles',
-//         'helps' => $helps_data
-//     );
-//     return $form_fields;
-// }
+    $form_fields['attached_objects'] = array(
+        'label' => __( 'Linked Articles' ),
+		'input' => 'html',
+		'html' => '<span></span>',
+		 'helps' => pscm_output_attached_objects($post->ID, false)
+    );
+    return $form_fields;
+}
 
 
-//add_filter('attachment_fields_to_edit', 'pscm_add_media_attachment_detail', 10, 2);
+add_filter('attachment_fields_to_edit', 'pscm_add_media_attachment_detail', 10, 2);
+
+function pscm_delete_link_in_list_view( $actions ) {
+	global $post;
+    if ( !pscm_can_delete( $post->ID ) ){
+		 $actions['delete'] = '<a href="'.get_delete_post_link($post->ID, '', true).'" class="submitdelete aria-button-if-js" role="button">'. __('Can\'t Delete Permanently') .'</a>';
+	}
+       
+    return $actions;
+}
+add_filter( 'media_row_actions', 'pscm_delete_link_in_list_view' );
+
+function pscm_remove_bulk_delete_in_list_view( $actions ) {
+	
+    unset( $actions['delete'] );
+	
+    return $actions;
+}
+add_filter( 'bulk_actions-upload', 'pscm_remove_bulk_delete_in_list_view' );
+
+function pscm_remove_delete_link_in_grid_view( $response, $attachment ) {
+	
+    if ( !pscm_can_delete( $attachment->ID ) ){
+		$response['nonces']['delete'] = false;
+
+	}
+    return $response;
+}
+//add_filter( 'wp_prepare_attachment_for_js', 'pscm_remove_delete_link_in_grid_view' );
+
+function pscm_can_delete($id) {
+    
+	$attached_objects = pscm_get_linked_objects($id);
+    if( sizeof($attached_objects['posts'])>0 || sizeof($attached_objects['terms'])>0){
+		$response = false;
+	}else $response = true;
+
+	return $response;
+}
