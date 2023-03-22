@@ -49,7 +49,7 @@ function pscm_register_taxonomy_metabox() {
 
 
 add_filter( 'manage_media_columns', 'pscm_attached_objects_col', 10, 2);
- function pscm_attached_objects_col( $cols, $detached ) {
+ function pscm_attached_objects_col( $cols) {
 	$cols['attached_objects'] =  __( 'Attached Objects', 'pim-safe-category-media' );
 
 	return $cols;
